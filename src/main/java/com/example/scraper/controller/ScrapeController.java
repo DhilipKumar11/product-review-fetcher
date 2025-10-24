@@ -24,10 +24,13 @@ public class ScrapeController {
             }
 
             Document doc = Jsoup.connect(url)
-                    .userAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
-                            "(KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36")
-                    .timeout(15000)
-                    .get();
+        .userAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+                 + "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+        .referrer("https://www.google.com")
+        .timeout(10000)
+        .followRedirects(true)
+        .get();
+
 
             Elements reviewElements;
 
