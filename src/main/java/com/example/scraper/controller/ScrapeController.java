@@ -22,15 +22,16 @@ public class ScrapeController {
             if (url.contains("amzn.in")) {
                 url = Jsoup.connect(url).followRedirects(true).get().location();
             }
+             Connection connection = Jsoup.connect(url)
+    .userAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+             + "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+    .referrer("https://www.google.com/")
+    .header("Accept-Language", "en-US,en;q=0.9")
+    .header("Accept-Encoding", "gzip, deflate")
+    .timeout(20000)  // 20 seconds timeout
+    .followRedirects(true);
 
-            Document doc = Jsoup.connect(url)
-        .userAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-                 + "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
-        .referrer("https://www.google.com")
-        .timeout(10000)
-        .followRedirects(true)
-        .get();
-
+         Document doc = connection.get();
 
             Elements reviewElements;
 
