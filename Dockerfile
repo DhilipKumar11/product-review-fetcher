@@ -12,7 +12,16 @@ COPY src ./src
 RUN mvn clean package -DskipTests
 
 # === Stage 2: Run the application ===
-FROM openjdk:17-jdk-slim
+# === Stage 2: Run the application ===
+FROM eclipse-temurin:17-jdk-jammy
+
+# Install Google Chrome for Selenium
+RUN apt-get update && apt-get install -y wget gnupg2 unzip ca-certificates \
+    && wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add - \
+    && sh -c 'echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google-chrome.list' \
+    && apt-get update \
+    && apt-get install -y google-chrome-stable \
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
