@@ -20,32 +20,34 @@ import java.util.List;
 @RequestMapping("/api")
 public class ScrapeController {
 
+    private WebDriver driver;
+
+    private void setupDriver() {
+        if (driver != null) {
+            return;
+        }
+        WebDriverManager.chromedriver().setup();
+        ChromeOptions options = new ChromeOptions();
+        options.setPageLoadStrategy(org.openqa.selenium.PageLoadStrategy.EAGER);
+        options.addArguments("--headless=new");
+        options.addArguments("--disable-gpu");
+        options.addArguments("--no-sandbox");
+        options.addArguments("--disable-dev-shm-usage");
+        options.addArguments("--blink-settings=imagesEnabled=false");
+        options.addArguments(
+                "--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
+
+        driver = new ChromeDriver(options);
+    }
+
     @GetMapping("/scrape")
     public List<Review> scrape(@RequestParam String url) {
         List<Review> reviews = new ArrayList<>();
-        WebDriver driver = null;
 
         try {
-            // Setup ChromeDriver
-            WebDriverManager.chromedriver().setup();
-            ChromeOptions options = new ChromeOptions();
-            options.setPageLoadStrategy(org.openqa.selenium.PageLoadStrategy.EAGER); // Don't wait for all resources
-            options.addArguments("--headless=new");
-            options.addArguments("--disable-gpu");
-            options.addArguments("--no-sandbox");
-            options.addArguments("--disable-dev-shm-usage");
-            options.addArguments("--blink-settings=imagesEnabled=false"); // Disable images
-            options.addArguments(
-                    "--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
-
-            driver = new ChromeDriver(options);
+            setupDriver();
 
             System.out.println("Processing URL: " + url);
-
-            // Handle Amazon URL adjustment for mobile if needed, but Desktop usually works
-            // better with Selenium
-            // However, sticking to the user's provided URL mostly, but cleaning it
-
             driver.get(url);
 
             // Get the final URL after redirects
@@ -59,12 +61,10 @@ public class ScrapeController {
 
             if (currentUrl.contains("amazon.") || currentUrl.contains("amzn.")) {
                 try {
-                    // Try waiting for the specific element
                     wait.until(ExpectedConditions
                             .presenceOfElementLocated(By.cssSelector("span[data-hook='review-body']")));
                     reviewElements = driver.findElements(By.cssSelector("span[data-hook='review-body']"));
                 } catch (Exception e) {
-                    // Fallback
                     reviewElements = driver.findElements(By.cssSelector(".review-text-content span"));
                 }
             } else if (currentUrl.contains("flipkart.")) {
@@ -96,11 +96,20 @@ public class ScrapeController {
         } catch (Exception e) {
             e.printStackTrace();
             reviews.add(new Review("Error: " + e.getMessage()));
-        } finally {
-            if (driver != null) {
-                driver.quit();
+
+            // If logging shows session invalid, we might want to quit driver to force
+            // restart next time
+            if (e.getMessage().contains("Session") || e.getMessage().contains("died")) {
+                if (driver != null) {
+                    try {
+                        driver.quit();
+                    } catch (Exception ignored) {
+                    }
+                    driver = null;
+                }
             }
         }
+        // Do NOT quit the driver here, keep it alive for next request
 
         return reviews;
     }
