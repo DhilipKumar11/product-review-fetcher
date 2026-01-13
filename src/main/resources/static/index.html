@@ -2,16 +2,45 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Product Review Fetcher</title>
-    <link rel="stylesheet" href="styles.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Amazon Review Fetcher</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
-<div class="container">
-    <h1>🛒 Product Review Fetcher</h1>
-    <input id="urlInput" type="text" placeholder="Paste Amazon product link...">
-    <button onclick="fetchReviews()">Fetch Reviews</button>
-    <div id="reviews"></div>
-</div>
-<script src="app.js"></script>
+    <div class="container">
+        <header>
+            <h1>Review Fetcher</h1>
+            <p>Paste an Amazon product link to get instant reviews.</p>
+        </header>
+
+        <main>
+            <form id="scrapeForm">
+                <div class="input-group">
+                    <input type="url" id="urlInput" placeholder="https://www.amazon.in/dp/..." required>
+                    <button type="submit" id="submitBtn">
+                        <span class="btn-text">Fetch Reviews</span>
+                        <div class="loader"></div>
+                    </button>
+                </div>
+            </form>
+
+            <div id="errorMsg" class="error-msg hidden"></div>
+
+            <div id="results" class="results-container hidden">
+                <h2>Customer Reviews</h2>
+                <div id="reviewsList" class="reviews-list">
+                    <!-- Reviews will be populated here -->
+                </div>
+            </div>
+        </main>
+        
+        <footer>
+            <p>&copy; 2025 Review Fetcher. Built with Spring Boot.</p>
+        </footer>
+    </div>
+    <script src="script.js"></script>
 </body>
 </html>
