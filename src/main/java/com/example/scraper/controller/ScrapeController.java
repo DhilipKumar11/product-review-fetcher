@@ -29,10 +29,12 @@ public class ScrapeController {
             // Setup ChromeDriver
             WebDriverManager.chromedriver().setup();
             ChromeOptions options = new ChromeOptions();
-            options.addArguments("--headless=new"); // Modern headless mode
+            options.setPageLoadStrategy(org.openqa.selenium.PageLoadStrategy.EAGER); // Don't wait for all resources
+            options.addArguments("--headless=new");
             options.addArguments("--disable-gpu");
             options.addArguments("--no-sandbox");
             options.addArguments("--disable-dev-shm-usage");
+            options.addArguments("--blink-settings=imagesEnabled=false"); // Disable images
             options.addArguments(
                     "--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
 
