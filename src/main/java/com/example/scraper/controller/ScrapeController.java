@@ -34,6 +34,12 @@ public class ScrapeController {
         options.addArguments("--no-sandbox");
         options.addArguments("--disable-dev-shm-usage");
         options.addArguments("--blink-settings=imagesEnabled=false");
+
+        // Anti-detection settings
+        options.addArguments("--disable-blink-features=AutomationControlled");
+        options.setExperimentalOption("excludeSwitches", java.util.Collections.singletonList("enable-automation"));
+        options.setExperimentalOption("useAutomationExtension", false);
+
         options.addArguments(
                 "--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
 
@@ -90,7 +96,19 @@ public class ScrapeController {
             }
 
             if (reviews.isEmpty()) {
-                System.out.println("No reviews found. Page title: " + driver.getTitle());
+                String title = driver.getTitle();
+                System.out.println("No reviews found. Page title: " + title);
+
+                // Debug: Take screenshot
+                try {
+                    java.io.File screenshot = ((org.openqa.selenium.TakesScreenshot) driver)
+                            .getScreenshotAs(org.openqa.selenium.OutputType.FILE);
+                    String filename = "debug_failure_" + System.currentTimeMillis() + ".png";
+                    org.springframework.util.FileCopyUtils.copy(screenshot, new java.io.File(filename));
+                    System.out.println("Saved debug screenshot to " + filename);
+                } catch (Exception se) {
+                    System.out.println("Failed to save screenshot: " + se.getMessage());
+                }
             }
 
         } catch (Exception e) {
