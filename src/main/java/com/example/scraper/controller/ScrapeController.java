@@ -24,7 +24,12 @@ public class ScrapeController {
 
     @jakarta.annotation.PostConstruct
     public void init() {
-        setupDriver();
+        // Initialize driver in a background thread to avoid blocking application
+        // startup
+        new Thread(() -> {
+            setupDriver();
+            System.out.println("Driver initialization completed in background.");
+        }).start();
     }
 
     private void setupDriver() {
