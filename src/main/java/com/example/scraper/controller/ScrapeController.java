@@ -22,6 +22,11 @@ public class ScrapeController {
 
     private WebDriver driver;
 
+    @jakarta.annotation.PostConstruct
+    public void init() {
+        setupDriver();
+    }
+
     private void setupDriver() {
         if (driver != null) {
             return;
@@ -51,6 +56,7 @@ public class ScrapeController {
         List<Review> reviews = new ArrayList<>();
 
         try {
+            // Ensure driver is ready (in case it crashed and was nullified)
             setupDriver();
 
             System.out.println("Processing URL: " + url);
@@ -63,24 +69,42 @@ public class ScrapeController {
             // Wait for reviews to load
             WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(10));
 
-            List<WebElement> reviewElements;
+            List<WebElement> reviewElements = new ArrayList<>();
 
             if (currentUrl.contains("amazon.") || currentUrl.contains("amzn.")) {
                 try {
-                    wait.until(ExpectedConditions
-                            .presenceOfElementLocated(By.cssSelector("span[data-hook='review-body']")));
+                    // Wait for EITHER the standard selector OR the mobile/alternative selector
+                    wait.until(ExpectedConditions.or(
+                            ExpectedConditions
+                                    .presenceOfElementLocated(By.cssSelector("span[data-hook='review-body']")),
+                            ExpectedConditions.presenceOfElementLocated(By.cssSelector(".review-text-content span"))));
+
+                    // Try to find elements with the primary selector first
                     reviewElements = driver.findElements(By.cssSelector("span[data-hook='review-body']"));
+
+                    // If none found, try the secondary selector
+                    if (reviewElements.isEmpty()) {
+                        reviewElements = driver.findElements(By.cssSelector(".review-text-content span"));
+                    }
                 } catch (Exception e) {
-                    reviewElements = driver.findElements(By.cssSelector(".review-text-content span"));
+                    System.out.println("Timeout waiting for Amazon review selectors.");
                 }
             } else if (currentUrl.contains("flipkart.")) {
-                wait.until(ExpectedConditions.presenceOfElementLocated(By.cssSelector("div.t-ZTKy")));
-                reviewElements = driver.findElements(By.cssSelector("div.t-ZTKy"));
-                if (reviewElements.isEmpty()) {
-                    reviewElements = driver.findElements(By.cssSelector("div.ZmyHeo"));
+                try {
+                    wait.until(ExpectedConditions.or(
+                            ExpectedConditions.presenceOfElementLocated(By.cssSelector("div.t-ZTKy")),
+                            ExpectedConditions.presenceOfElementLocated(By.cssSelector("div.ZmyHeo"))));
+
+                    reviewElements = driver.findElements(By.cssSelector("div.t-ZTKy"));
+                    if (reviewElements.isEmpty()) {
+                        reviewElements = driver.findElements(By.cssSelector("div.ZmyHeo"));
+                    }
+                } catch (Exception e) {
+                    System.out.println("Timeout waiting for Flipkart review selectors.");
                 }
             } else {
-                throw new Exception("Unsupported website: " + currentUrl);
+                reviews.add(new Review("Error: Unsupported website: " + currentUrl));
+                return reviews;
             }
 
             System.out.println("Found " + reviewElements.size() + " reviews.");
@@ -98,26 +122,13 @@ public class ScrapeController {
             if (reviews.isEmpty()) {
                 String title = driver.getTitle();
                 System.out.println("No reviews found. Page title: " + title);
-
-                // Debug: Take screenshot
-                try {
-                    java.io.File screenshot = ((org.openqa.selenium.TakesScreenshot) driver)
-                            .getScreenshotAs(org.openqa.selenium.OutputType.FILE);
-                    String filename = "debug_failure_" + System.currentTimeMillis() + ".png";
-                    org.springframework.util.FileCopyUtils.copy(screenshot, new java.io.File(filename));
-                    System.out.println("Saved debug screenshot to " + filename);
-                } catch (Exception se) {
-                    System.out.println("Failed to save screenshot: " + se.getMessage());
-                }
             }
 
         } catch (Exception e) {
             e.printStackTrace();
             reviews.add(new Review("Error: " + e.getMessage()));
 
-            // If logging shows session invalid, we might want to quit driver to force
-            // restart next time
-            if (e.getMessage().contains("Session") || e.getMessage().contains("died")) {
+            if (e.getMessage() != null && (e.getMessage().contains("Session") || e.getMessage().contains("died"))) {
                 if (driver != null) {
                     try {
                         driver.quit();
@@ -127,7 +138,6 @@ public class ScrapeController {
                 }
             }
         }
-        // Do NOT quit the driver here, keep it alive for next request
 
         return reviews;
     }
