@@ -3,6 +3,7 @@ package com.example.scraper.controller;
 import com.example.scraper.model.Review;
 import io.github.bonigarcia.wdm.WebDriverManager;
 import org.openqa.selenium.By;
+import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.chrome.ChromeDriver;
@@ -90,8 +91,12 @@ public class ScrapeController {
                 System.out.println("Resolved URL: " + currentUrl);
             } catch (org.openqa.selenium.TimeoutException e) {
                 System.out.println("Timeout on initial navigation. Attempting to stop page load and continue...");
-                // Stop the page load
-                driver.navigate().to("javascript:window.stop();");
+                // Stop the page load using JavaScript executor
+                try {
+                    ((JavascriptExecutor) driver).executeScript("window.stop();");
+                } catch (Exception stopException) {
+                    System.out.println("Could not stop page load: " + stopException.getMessage());
+                }
                 currentUrl = driver.getCurrentUrl();
                 System.out.println("Current URL after timeout: " + currentUrl);
 
@@ -107,7 +112,11 @@ public class ScrapeController {
                             currentUrl = driver.getCurrentUrl();
                         } catch (org.openqa.selenium.TimeoutException e2) {
                             System.out.println("Timeout on reviews page too. Stopping and continuing...");
-                            driver.navigate().to("javascript:window.stop();");
+                            try {
+                                ((JavascriptExecutor) driver).executeScript("window.stop();");
+                            } catch (Exception stopException) {
+                                System.out.println("Could not stop page load: " + stopException.getMessage());
+                            }
                             currentUrl = driver.getCurrentUrl();
                         }
                     }
