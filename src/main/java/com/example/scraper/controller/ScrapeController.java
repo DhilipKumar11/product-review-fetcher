@@ -45,15 +45,28 @@ public class ScrapeController {
         options.addArguments("--disable-dev-shm-usage");
         options.addArguments("--blink-settings=imagesEnabled=false");
 
+        // Window size to avoid mobile detection
+        options.addArguments("--window-size=1920,1080");
+        options.addArguments("--start-maximized");
+
         // Anti-detection settings
         options.addArguments("--disable-blink-features=AutomationControlled");
         options.setExperimentalOption("excludeSwitches", java.util.Collections.singletonList("enable-automation"));
         options.setExperimentalOption("useAutomationExtension", false);
 
+        // Additional anti-bot measures
+        options.addArguments("--disable-web-security");
+        options.addArguments("--disable-features=IsolateOrigins,site-per-process");
+        options.addArguments("--lang=en-US,en;q=0.9");
+        options.addArguments("--accept-lang=en-US,en;q=0.9");
+
         options.addArguments(
                 "--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
 
         driver = new ChromeDriver(options);
+
+        // Set script timeout
+        driver.manage().timeouts().scriptTimeout(Duration.ofSeconds(30));
     }
 
     @GetMapping("/scrape")
@@ -64,12 +77,42 @@ public class ScrapeController {
             // Ensure driver is ready (in case it crashed and was nullified)
             setupDriver();
 
-            System.out.println("Processing URL: " + url);
-            driver.get(url);
+            // Set explicit page load timeout
+            driver.manage().timeouts().pageLoadTimeout(Duration.ofSeconds(30));
 
-            // Get the final URL after redirects
-            String currentUrl = driver.getCurrentUrl();
-            System.out.println("Resolved URL: " + currentUrl);
+            System.out.println("Processing URL: " + url);
+
+            String currentUrl = url;
+            try {
+                driver.get(url);
+                // Get the final URL after redirects
+                currentUrl = driver.getCurrentUrl();
+                System.out.println("Resolved URL: " + currentUrl);
+            } catch (org.openqa.selenium.TimeoutException e) {
+                System.out.println("Timeout on initial navigation. Attempting to stop page load and continue...");
+                // Stop the page load
+                driver.navigate().to("javascript:window.stop();");
+                currentUrl = driver.getCurrentUrl();
+                System.out.println("Current URL after timeout: " + currentUrl);
+
+                // If we got redirected to Amazon, try to extract product ID and go directly to
+                // reviews
+                if (currentUrl.contains("amazon.") || currentUrl.contains("amzn.")) {
+                    String productId = extractAmazonProductId(currentUrl);
+                    if (productId != null) {
+                        String reviewsUrl = buildAmazonReviewsUrl(currentUrl, productId);
+                        System.out.println("Navigating directly to reviews page: " + reviewsUrl);
+                        try {
+                            driver.get(reviewsUrl);
+                            currentUrl = driver.getCurrentUrl();
+                        } catch (org.openqa.selenium.TimeoutException e2) {
+                            System.out.println("Timeout on reviews page too. Stopping and continuing...");
+                            driver.navigate().to("javascript:window.stop();");
+                            currentUrl = driver.getCurrentUrl();
+                        }
+                    }
+                }
+            }
 
             // Wait for reviews to load
             WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(10));
@@ -145,5 +188,57 @@ public class ScrapeController {
         }
 
         return reviews;
+    }
+
+    private String extractAmazonProductId(String url) {
+        // Extract ASIN (Amazon Standard Identification Number) from URL
+        // Patterns: /dp/ASIN, /product/ASIN, /gp/product/ASIN
+        try {
+            if (url.contains("/dp/")) {
+                int start = url.indexOf("/dp/") + 4;
+                int end = url.indexOf("/", start);
+                if (end == -1)
+                    end = url.indexOf("?", start);
+                if (end == -1)
+                    end = url.length();
+                return url.substring(start, end);
+            } else if (url.contains("/product/")) {
+                int start = url.indexOf("/product/") + 9;
+                int end = url.indexOf("/", start);
+                if (end == -1)
+                    end = url.indexOf("?", start);
+                if (end == -1)
+                    end = url.length();
+                return url.substring(start, end);
+            } else if (url.contains("/gp/product/")) {
+                int start = url.indexOf("/gp/product/") + 12;
+                int end = url.indexOf("/", start);
+                if (end == -1)
+                    end = url.indexOf("?", start);
+                if (end == -1)
+                    end = url.length();
+                return url.substring(start, end);
+            }
+        } catch (Exception e) {
+            System.out.println("Error extracting product ID: " + e.getMessage());
+        }
+        return null;
+    }
+
+    private String buildAmazonReviewsUrl(String originalUrl, String productId) {
+        // Build the reviews page URL based on the domain
+        String domain = "amazon.in"; // default
+
+        if (originalUrl.contains("amazon.com")) {
+            domain = "amazon.com";
+        } else if (originalUrl.contains("amazon.co.uk")) {
+            domain = "amazon.co.uk";
+        } else if (originalUrl.contains("amazon.in")) {
+            domain = "amazon.in";
+        } else if (originalUrl.contains("amazon.de")) {
+            domain = "amazon.de";
+        }
+
+        return "https://www." + domain + "/product-reviews/" + productId;
     }
 }
